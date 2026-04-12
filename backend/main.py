@@ -1,9 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional
 import sys
 import os
+import shutil
+import uuid
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -13,16 +16,21 @@ from database import (
     get_all_problems,
     update_status,
     get_stats,
+    get_connection,
 )
 from agent import classify_complaint
 from router import route_problem
 
 app = FastAPI(title="Campus Problem Solver API")
 
-# Allow requests from React frontend
+# Serve uploaded images as static files
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten this after deployment
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,11 +38,8 @@ app.add_middleware(
 
 # ---------- Request / Response Models ----------
 
-class SubmitProblemRequest(BaseModel):
-    description: str
-
 class UpdateStatusRequest(BaseModel):
-    status: str  # Submitted | In Progress | Resolved
+    status: str
     resolution: Optional[str] = None
 
 
@@ -46,21 +51,34 @@ def root():
 
 
 @app.post("/problems")
-def submit_problem(body: SubmitProblemRequest):
-    description = body.description.strip()
+async def submit_problem(
+    description: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+):
+    description = description.strip()
 
     if not description:
         raise HTTPException(status_code=400, detail="Description cannot be empty.")
     if len(description) < 10:
         raise HTTPException(status_code=400, detail="Description is too short.")
 
-    # Save to DB first
-    tracking_id = insert_problem(description)
+    # Save image if uploaded
+    image_url = None
+    if image and image.filename:
+        ext = os.path.splitext(image.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            shutil.copyfileobj(image.file, f)
+        image_url = f"/uploads/{filename}"
+
+    # Save to DB
+    tracking_id = insert_problem(description, image_url)
 
     # Classify with Gemini
     classification = classify_complaint(description)
 
-    # Route to department + log notification
+    # Route to department
     routing = route_problem(tracking_id, classification)
 
     return {
@@ -71,18 +89,17 @@ def submit_problem(body: SubmitProblemRequest):
         "reasoning": routing["reasoning"],
         "fallback": routing["fallback"],
         "executive": routing["executive"],
+        "image_url": image_url,
     }
 
 
 @app.get("/problems")
 def get_problems(status: Optional[str] = None, department: Optional[str] = None):
     problems = get_all_problems()
-
     if status and status != "All":
         problems = [p for p in problems if p["status"] == status]
     if department and department != "All":
         problems = [p for p in problems if p.get("department") == department]
-
     return problems
 
 
@@ -106,6 +123,18 @@ def update_problem_status(tracking_id: str, body: UpdateStatusRequest):
 
     update_status(tracking_id.upper(), body.status, body.resolution)
     return {"message": "Updated successfully."}
+
+
+@app.delete("/problems/{tracking_id}")
+def delete_problem(tracking_id: str):
+    problem = get_problem_by_id(tracking_id.upper())
+    if not problem:
+        raise HTTPException(status_code=404, detail="Problem not found.")
+    conn = get_connection()
+    conn.execute("DELETE FROM problems WHERE id = ?", (tracking_id.upper(),))
+    conn.commit()
+    conn.close()
+    return {"message": "Deleted successfully."}
 
 
 @app.get("/stats")

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAllProblems, getStats, updateProblemStatus } from "../api";
+import { getAllProblems, getStats, updateProblemStatus, deleteProblem, getImageUrl } from "../api";
 
 const statusConfig = {
   Submitted: "bg-blue-600",
@@ -21,6 +21,7 @@ function ProblemCard({ problem, onUpdate }) {
   const [resolution, setResolution] = useState(problem.resolution || "");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [open, setOpen] = useState(false);
 
   const handleSave = async () => {
@@ -37,11 +38,22 @@ function ProblemCard({ problem, onUpdate }) {
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm(`Delete problem ${problem.id}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deleteProblem(problem.id);
+      onUpdate();
+    } catch (e) {
+      alert("Failed to delete. Try again.");
+      setDeleting(false);
+    }
+  };
+
   const cfg = statusConfig[problem.status] || "bg-gray-600";
 
   return (
     <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
-      {/* Header */}
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-750 transition-colors text-left"
@@ -51,9 +63,7 @@ function ProblemCard({ problem, onUpdate }) {
             {problem.status}
           </span>
           <span className="font-mono text-gray-300 text-sm">{problem.id}</span>
-          <span className="text-gray-400 text-sm hidden md:block">
-            {problem.category || "Unclassified"}
-          </span>
+          <span className="text-gray-400 text-sm hidden md:block">{problem.category || "Unclassified"}</span>
         </div>
         <div className="flex items-center gap-3 text-gray-400 text-sm">
           <span className="hidden md:block">{problem.submitted_at}</span>
@@ -61,15 +71,27 @@ function ProblemCard({ problem, onUpdate }) {
         </div>
       </button>
 
-      {/* Expanded body */}
       {open && (
         <div className="border-t border-gray-700 px-5 py-4 grid md:grid-cols-2 gap-6">
-          {/* Left: complaint info */}
+          {/* Left */}
           <div className="space-y-3">
             <div>
               <div className="text-xs text-gray-400 mb-1">Complaint</div>
               <div className="bg-gray-900 rounded-xl px-4 py-3 text-gray-300 text-sm">{problem.description}</div>
             </div>
+
+            {/* Image */}
+            {problem.image_path && (
+              <div>
+                <div className="text-xs text-gray-400 mb-1">Attached Photo</div>
+                <img
+                  src={getImageUrl(problem.image_path)}
+                  alt="complaint"
+                  className="w-full max-h-48 object-cover rounded-xl"
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <div className="text-xs text-gray-400 mb-1">Category</div>
@@ -90,7 +112,7 @@ function ProblemCard({ problem, onUpdate }) {
             </div>
           </div>
 
-          {/* Right: update panel */}
+          {/* Right */}
           <div className="space-y-3">
             <div>
               <label className="text-xs text-gray-400 mb-1 block">Update Status</label>
@@ -120,6 +142,13 @@ function ProblemCard({ problem, onUpdate }) {
               className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-semibold py-2 rounded-xl transition-colors text-sm"
             >
               {saved ? "✅ Saved!" : saving ? "Saving..." : "💾 Save Update"}
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="w-full bg-red-700 hover:bg-red-600 disabled:bg-red-900 text-white font-semibold py-2 rounded-xl transition-colors text-sm"
+            >
+              {deleting ? "Deleting..." : "🗑️ Delete Problem"}
             </button>
           </div>
         </div>
@@ -167,7 +196,6 @@ export default function Admin() {
         </button>
       </div>
 
-      {/* Stats */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard label="Total" value={stats.total} color="bg-gray-500" />
@@ -177,30 +205,24 @@ export default function Admin() {
         </div>
       )}
 
-      {/* Filters */}
       <div className="flex gap-3 flex-wrap">
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
         >
-          {["All", "Submitted", "In Progress", "Resolved"].map((s) => (
-            <option key={s}>{s}</option>
-          ))}
+          {["All", "Submitted", "In Progress", "Resolved"].map((s) => <option key={s}>{s}</option>)}
         </select>
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
           className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
         >
-          {["All", "Maintenance Department", "Dean of Students Office", "Hostel & Mess Committee", "Academic Office", "General Administration"].map((d) => (
-            <option key={d}>{d}</option>
-          ))}
+          {["All", "Maintenance Department", "Dean of Students Office", "Hostel & Mess Committee", "Academic Office", "General Administration"].map((d) => <option key={d}>{d}</option>)}
         </select>
         <span className="text-gray-400 text-sm self-center">{problems.length} problem(s)</span>
       </div>
 
-      {/* Problem list */}
       {loading ? (
         <div className="text-center text-gray-400 py-12">Loading...</div>
       ) : problems.length === 0 ? (
