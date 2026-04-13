@@ -1,8 +1,12 @@
 import { useState, useRef } from "react";
 import { submitProblem, getImageUrl } from "../api";
 
+const BLOCKS = ["1", "2", "3", "4"];
+
 export default function Submit() {
   const [description, setDescription] = useState("");
+  const [block, setBlock] = useState("");
+  const [room, setRoom] = useState("");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -28,12 +32,17 @@ export default function Submit() {
     setError("");
     if (!description.trim()) return setError("Please describe your problem.");
     if (description.trim().length < 10) return setError("Description is too short.");
+    if (!block) return setError("Please select your hostel block.");
+    if (!room || room < 1 || room > 999) return setError("Please enter a valid room number.");
 
     setLoading(true);
     try {
-      const data = await submitProblem(description.trim(), image);
-      setResult(data);
+      const fullDescription = `[Block ${block}, Room ${room}] ${description.trim()}`;
+      const data = await submitProblem(fullDescription, image);
+      setResult({ ...data, block, room });
       setDescription("");
+      setBlock("");
+      setRoom("");
       setImage(null);
       setPreview(null);
     } catch (err) {
@@ -58,6 +67,40 @@ export default function Submit() {
 
       {!result ? (
         <form onSubmit={handleSubmit} className="bg-gray-800 rounded-2xl p-6 space-y-4">
+
+          {/* Block + Room */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Hostel Block <span className="text-red-400">*</span>
+              </label>
+              <select
+                value={block}
+                onChange={(e) => setBlock(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+              >
+                <option value="">Select block</option>
+                {BLOCKS.map((b) => (
+                  <option key={b} value={b}>Block {b}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Room Number <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="number"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                placeholder="e.g. 204"
+                min={1}
+                max={999}
+                className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -67,7 +110,7 @@ export default function Submit() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              placeholder="e.g. Bathroom on 3rd floor has no water since yesterday morning..."
+              placeholder="e.g. Bathroom has no water since yesterday morning..."
               className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none"
             />
             <div className="text-right text-xs text-gray-500 mt-1">{description.length} chars</div>
@@ -99,13 +142,7 @@ export default function Submit() {
                 </button>
               </div>
             )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="hidden"
-            />
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
           </div>
 
           {error && (
@@ -119,11 +156,7 @@ export default function Submit() {
             disabled={loading}
             className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <><span className="animate-spin">⏳</span> AI is analyzing your complaint...</>
-            ) : (
-              "🚀 Submit Problem"
-            )}
+            {loading ? <><span className="animate-spin">⏳</span> AI is analyzing...</> : "🚀 Submit Problem"}
           </button>
         </form>
       ) : (
@@ -145,6 +178,10 @@ export default function Submit() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <div className="text-xs text-gray-400 mb-1">Location</div>
+                <div className="font-semibold text-white">Block {result.block}, Room {result.room}</div>
+              </div>
+              <div>
                 <div className="text-xs text-gray-400 mb-1">Category</div>
                 <div className="font-semibold text-white">{result.category}</div>
               </div>
@@ -158,10 +195,6 @@ export default function Submit() {
                 <div className="text-xs text-gray-400 mb-1">Routed to</div>
                 <div className="font-semibold text-white">{result.department}</div>
               </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Assigned Executive</div>
-                <div className="font-semibold text-white">{result.executive?.name}</div>
-              </div>
             </div>
 
             {result.image_url && (
@@ -169,11 +202,7 @@ export default function Submit() {
                 <hr className="border-gray-700" />
                 <div>
                   <div className="text-xs text-gray-400 mb-2">Attached Photo</div>
-                  <img
-                    src={getImageUrl(result.image_url)}
-                    alt="submitted"
-                    className="w-full max-h-48 object-cover rounded-xl"
-                  />
+                  <img src={getImageUrl(result.image_url)} alt="submitted" className="w-full max-h-48 object-cover rounded-xl" />
                 </div>
               </>
             )}
