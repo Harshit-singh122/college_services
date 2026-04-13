@@ -16,7 +16,7 @@ export default function Login({ onLogin }) {
         localStorage.setItem("admin_auth", "true");
         onLogin();
       } else {
-        setError("Incorrect password. Try again.");
+        setError("Incorrect password. Please try again.");
       }
       setLoading(false);
     }, 500);
@@ -24,40 +24,47 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="bg-gray-800 rounded-2xl p-8 w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <div className="text-4xl mb-3">🔐</div>
-          <h1 className="text-2xl font-bold text-white">Admin Login</h1>
-          <p className="text-gray-400 text-sm mt-1">Enter the admin password to continue</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password"
-              className="w-full bg-gray-900 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500"
-              autoFocus
-            />
+      <div className="w-full max-w-sm">
+        <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm space-y-6">
+          <div className="text-center">
+            <div className="w-14 h-14 bg-slate-900 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-4">
+              🔐
+            </div>
+            <h1 className="text-2xl font-black text-slate-900">Admin Access</h1>
+            <p className="text-slate-400 text-sm mt-1">Enter your password to access the dashboard</p>
           </div>
 
-          {error && (
-            <div className="bg-red-900/40 border border-red-600 text-red-300 rounded-xl px-4 py-3 text-sm">
-              ⚠️ {error}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••••"
+                autoFocus
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-800 placeholder-slate-300 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-semibold py-3 rounded-xl transition-colors"
-          >
-            {loading ? "Checking..." : "🔓 Login"}
-          </button>
-        </form>
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm font-medium">
+                ⚠️ {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-slate-900 hover:bg-slate-700 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-all"
+            >
+              {loading ? "Verifying..." : "Login →"}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-xs text-slate-400 mt-4">
+          UniSync Admin Panel · Restricted Access
+        </p>
       </div>
     </div>
   );

@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { getAllProblems, getStats, updateProblemStatus, deleteProblem, getImageUrl } from "../api";
 
 const statusConfig = {
-  Submitted: "bg-blue-600",
-  "In Progress": "bg-yellow-600",
-  Resolved: "bg-green-600",
+  Submitted: { bg: "bg-blue-100", text: "text-blue-700", dot: "bg-blue-500" },
+  "In Progress": { bg: "bg-amber-100", text: "text-amber-700", dot: "bg-amber-500" },
+  Resolved: { bg: "bg-emerald-100", text: "text-emerald-700", dot: "bg-emerald-500" },
 };
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, icon }) {
   return (
-    <div className={`${color} bg-opacity-20 border border-opacity-30 ${color.replace("bg-", "border-")} rounded-2xl p-5 text-center`}>
-      <div className="text-3xl font-bold text-white">{value}</div>
-      <div className="text-sm text-gray-300 mt-1">{label}</div>
+    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-2xl">{icon}</span>
+        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${color}`}>{label}</span>
+      </div>
+      <div className="text-3xl font-black text-slate-900">{value}</div>
     </div>
   );
 }
@@ -24,6 +27,8 @@ function ProblemCard({ problem, onUpdate }) {
   const [deleting, setDeleting] = useState(false);
   const [open, setOpen] = useState(false);
 
+  const cfg = statusConfig[problem.status] || statusConfig["Submitted"];
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -31,7 +36,7 @@ function ProblemCard({ problem, onUpdate }) {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
       onUpdate();
-    } catch (e) {
+    } catch {
       alert("Failed to update. Try again.");
     } finally {
       setSaving(false);
@@ -39,87 +44,74 @@ function ProblemCard({ problem, onUpdate }) {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete problem ${problem.id}? This cannot be undone.`)) return;
+    if (!confirm(`Delete complaint ${problem.id}? This is permanent.`)) return;
     setDeleting(true);
     try {
       await deleteProblem(problem.id);
       onUpdate();
-    } catch (e) {
-      alert("Failed to delete. Try again.");
+    } catch {
+      alert("Failed to delete.");
       setDeleting(false);
     }
   };
 
-  const cfg = statusConfig[problem.status] || "bg-gray-600";
-
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-2xl overflow-hidden">
+    <div className="bg-white border border-slate-100 rounded-2xl shadow-sm overflow-hidden hover:border-slate-200 transition-all">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-750 transition-colors text-left"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <span className={`${cfg} text-white text-xs font-semibold px-3 py-1 rounded-full`}>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className={`flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${cfg.bg} ${cfg.text}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
             {problem.status}
           </span>
-          <span className="font-mono text-gray-300 text-sm">{problem.id}</span>
-          <span className="text-gray-400 text-sm hidden md:block">{problem.category || "Unclassified"}</span>
+          <span className="font-mono text-sm font-bold text-slate-500">{problem.id}</span>
+          <span className="text-sm text-slate-700 truncate hidden md:block">{problem.description?.substring(0, 60)}…</span>
         </div>
-        <div className="flex items-center gap-3 text-gray-400 text-sm">
-          <span className="hidden md:block">{problem.submitted_at}</span>
-          <span>{open ? "▲" : "▼"}</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-xs text-slate-400 hidden md:block">{problem.submitted_at?.slice(0, 10)}</span>
+          <span className="text-slate-400 text-xs">{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-gray-700 px-5 py-4 grid md:grid-cols-2 gap-6">
-          {/* Left */}
-          <div className="space-y-3">
+        <div className="border-t border-slate-100 px-5 py-5 grid md:grid-cols-2 gap-6">
+          <div className="space-y-4">
             <div>
-              <div className="text-xs text-gray-400 mb-1">Complaint</div>
-              <div className="bg-gray-900 rounded-xl px-4 py-3 text-gray-300 text-sm">{problem.description}</div>
+              <div className="text-xs font-bold text-slate-400 uppercase mb-1.5">Complaint</div>
+              <div className="bg-slate-50 rounded-xl px-4 py-3 text-slate-700 text-sm leading-relaxed">{problem.description}</div>
             </div>
 
-            {/* Image */}
             {problem.image_path && (
               <div>
-                <div className="text-xs text-gray-400 mb-1">Attached Photo</div>
-                <img
-                  src={getImageUrl(problem.image_path)}
-                  alt="complaint"
-                  className="w-full max-h-48 object-cover rounded-xl"
-                />
+                <div className="text-xs font-bold text-slate-400 uppercase mb-1.5">Photo</div>
+                <img src={getImageUrl(problem.image_path)} alt="complaint" className="w-full max-h-40 object-cover rounded-xl border border-slate-100" />
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Category</div>
-                <div className="text-white">{problem.category || "—"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Confidence</div>
-                <div className="text-white">{problem.confidence ? `${Math.round(problem.confidence * 100)}%` : "—"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Department</div>
-                <div className="text-white">{problem.department || "—"}</div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-400 mb-1">Submitted</div>
-                <div className="text-white">{problem.submitted_at}</div>
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: "Category", value: problem.category || "—" },
+                { label: "Confidence", value: problem.confidence ? `${Math.round(problem.confidence * 100)}%` : "—" },
+                { label: "Department", value: problem.department || "—" },
+                { label: "Submitted", value: problem.submitted_at?.slice(0, 10) || "—" },
+              ].map((item, i) => (
+                <div key={i} className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-xs text-slate-400 font-medium mb-0.5">{item.label}</div>
+                  <div className="text-sm font-semibold text-slate-700">{item.value}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Right */}
           <div className="space-y-3">
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Update Status</label>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-1.5 block">Update Status</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full bg-gray-900 border border-gray-600 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 transition-all"
               >
                 <option>Submitted</option>
                 <option>In Progress</option>
@@ -127,28 +119,28 @@ function ProblemCard({ problem, onUpdate }) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Resolution / Response</label>
+              <label className="text-xs font-bold text-slate-400 uppercase mb-1.5 block">Resolution / Response</label>
               <textarea
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
-                rows={3}
-                placeholder="Describe what action was taken..."
-                className="w-full bg-gray-900 border border-gray-600 rounded-xl px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none text-sm"
+                rows={4}
+                placeholder="Describe what action was taken…"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100 resize-none transition-all text-sm"
               />
             </div>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 text-white font-semibold py-2 rounded-xl transition-colors text-sm"
+              className="w-full bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all text-sm"
             >
-              {saved ? "✅ Saved!" : saving ? "Saving..." : "💾 Save Update"}
+              {saved ? "✓ Saved!" : saving ? "Saving…" : "Save Update"}
             </button>
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="w-full bg-red-700 hover:bg-red-600 disabled:bg-red-900 text-white font-semibold py-2 rounded-xl transition-colors text-sm"
+              className="w-full bg-white border border-red-200 hover:bg-red-50 text-red-500 font-semibold py-2.5 rounded-xl transition-all text-sm"
             >
-              {deleting ? "Deleting..." : "🗑️ Delete Problem"}
+              {deleting ? "Deleting…" : "Delete Complaint"}
             </button>
           </div>
         </div>
@@ -184,54 +176,67 @@ export default function Admin() {
 
   useEffect(() => { fetchData(); }, [filterStatus, filterDept]);
 
+  const statCards = stats ? [
+    { label: "Total", value: stats.total, color: "bg-slate-100 text-slate-600", icon: "📋" },
+    { label: "Submitted", value: stats.submitted, color: "bg-blue-100 text-blue-600", icon: "📥" },
+    { label: "In Progress", value: stats.in_progress, color: "bg-amber-100 text-amber-600", icon: "⚙️" },
+    { label: "Resolved", value: stats.resolved, color: "bg-emerald-100 text-emerald-600", icon: "✅" },
+  ] : [];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white">🛠️ Admin Dashboard</h1>
-          <p className="text-gray-400 mt-1">Manage and resolve student complaints.</p>
+          <p className="text-xs font-bold text-violet-600 uppercase tracking-widest mb-1">Admin Panel</p>
+          <h1 className="text-4xl font-black text-slate-900">Dashboard</h1>
+          <p className="text-slate-500 mt-1">Manage and resolve student complaints.</p>
         </div>
-        <button onClick={fetchData} className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-xl text-sm transition-colors">
-          🔄 Refresh
+        <button
+          onClick={fetchData}
+          className="bg-white border border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-slate-600 font-semibold px-4 py-2 rounded-xl text-sm transition-all flex items-center gap-2"
+        >
+          <span className="text-base">🔄</span> Refresh
         </button>
       </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard label="Total" value={stats.total} color="bg-gray-500" />
-          <StatCard label="Submitted" value={stats.submitted} color="bg-blue-500" />
-          <StatCard label="In Progress" value={stats.in_progress} color="bg-yellow-500" />
-          <StatCard label="Resolved" value={stats.resolved} color="bg-green-500" />
+          {statCards.map((s, i) => <StatCard key={i} {...s} />)}
         </div>
       )}
 
-      <div className="flex gap-3 flex-wrap">
+      <div className="flex gap-3 flex-wrap items-center">
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+          className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-slate-700 focus:outline-none focus:border-violet-400 text-sm font-medium"
         >
           {["All", "Submitted", "In Progress", "Resolved"].map((s) => <option key={s}>{s}</option>)}
         </select>
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
-          className="bg-gray-800 border border-gray-600 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-indigo-500 text-sm"
+          className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-slate-700 focus:outline-none focus:border-violet-400 text-sm font-medium"
         >
           {["All", "Maintenance Department", "Dean of Students Office", "Hostel & Mess Committee", "Academic Office", "General Administration"].map((d) => <option key={d}>{d}</option>)}
         </select>
-        <span className="text-gray-400 text-sm self-center">{problems.length} problem(s)</span>
+        <span className="text-sm text-slate-400 font-medium">{problems.length} complaint{problems.length !== 1 ? "s" : ""}</span>
       </div>
 
       {loading ? (
-        <div className="text-center text-gray-400 py-12">Loading...</div>
+        <div className="text-center text-slate-400 py-16">
+          <div className="animate-spin text-3xl mb-3">⏳</div>
+          Loading complaints…
+        </div>
       ) : problems.length === 0 ? (
-        <div className="text-center text-gray-400 py-12 bg-gray-800 rounded-2xl">No problems found.</div>
+        <div className="text-center text-slate-400 py-16 bg-white rounded-2xl border border-slate-100">
+          <div className="text-4xl mb-3">📭</div>
+          <div className="font-semibold text-slate-500">No complaints found</div>
+          <div className="text-sm mt-1">Try changing your filters</div>
+        </div>
       ) : (
         <div className="space-y-3">
-          {problems.map((p) => (
-            <ProblemCard key={p.id} problem={p} onUpdate={fetchData} />
-          ))}
+          {problems.map((p) => <ProblemCard key={p.id} problem={p} onUpdate={fetchData} />)}
         </div>
       )}
     </div>
