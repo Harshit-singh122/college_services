@@ -5,9 +5,10 @@ import {
   SignedOut,
   SignInButton,
   UserButton,
-  useUser,
+  useUser as useClerkUser,
   RedirectToSignIn,
 } from "@clerk/clerk-react";
+import { useMockAuth } from "./MockAuthContext";
 
 import Home from "./pages/Home";
 import Submit from "./pages/Submit";
@@ -18,6 +19,15 @@ import Laundry from "./pages/Laundry";
 import LostFound from "./pages/LostFound";
 import DoubtPortal from "./pages/DoubtPortal";
 import Marketplace from "./pages/Marketplace";
+
+// Custom useUser hook that falls back to mock auth
+function useUser() {
+  try {
+    return useClerkUser();
+  } catch {
+    return useMockAuth();
+  }
+}
 
 // ── Protect any route: must be signed in ──────────────────────────
 function ProtectedRoute({ children }) {

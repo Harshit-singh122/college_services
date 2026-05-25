@@ -6,14 +6,24 @@ import App from "./App.jsx";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Clerk Publishable Key — add VITE_CLERK_PUBLISHABLE_KEY to .env");
-}
+// Check if key is a valid Clerk production key (starts with pk_live_)
+// For development, wrap App without Clerk
+const isValidKey = PUBLISHABLE_KEY && PUBLISHABLE_KEY.startsWith("pk_live_");
 
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+const root = createRoot(document.getElementById("root"));
+
+if (isValidKey) {
+  root.render(
+    <StrictMode>
+      <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+        <App />
+      </ClerkProvider>
+    </StrictMode>
+  );
+} else {
+  root.render(
+    <StrictMode>
       <App />
-    </ClerkProvider>
-  </StrictMode>
-);
+    </StrictMode>
+  );
+}
